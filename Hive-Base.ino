@@ -4,10 +4,10 @@
 #include <DHT_U.h>
 #include  "Hive.h"
 
-#define SOUND_PIN   A1
-#define DHTPIN      7
+#define SOUND_PIN   A0
+#define DHTPIN      4
 #define DHTTYPE     DHT11   
-#define PELTIER_PIN 9
+#define PELTIER_PIN 6
 
 #define TEMP_HYSTERYSIS 3
 
@@ -18,7 +18,7 @@ HiveData hive_data;
 const int LOADCELL_DOUT_PIN = 5;
 const int LOADCELL_SCK_PIN = 6;
 
-#define SCALE_CAL_VALUE -7000.f
+#define SCALE_CAL_VALUE -7000.f 
 
 HX711 scale;
 
@@ -158,9 +158,9 @@ void scale_init(){
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(19200);
-  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  scale.set_scale(-7000.f);
-  scale.tare();
+  //scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  //scale.set_scale(-7000.f);
+  //scale.tare();
   lora_configure();
   dht.begin();
   pinMode(PELTIER_PIN, OUTPUT);
@@ -181,7 +181,7 @@ void loop() {
   hive_data.sound_db = analogRead(SOUND_PIN);
   hive_data.bat_charge = 90;
   hive_data.bat_status = 0;
-  hive_data.raw_weight = scale.get_units(5);
+  //hive_data.raw_weight = scale.get_units(5);
 
   String rx = lora_parse_rx(lora_recieve());
   String cmd = rx.substring(0, HEADER_LENGTH);
@@ -214,7 +214,7 @@ void loop() {
   print_data_info();
 
   
-  scale.power_down();              // put the ADC in sleep mode
+  //scale.power_down();              // put the ADC in sleep mode
   delay(1000);
-  scale.power_up();
+  //scale.power_up();
 }

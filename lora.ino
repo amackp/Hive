@@ -1,7 +1,7 @@
 #include <SoftwareSerial.h>
 #include "Hive.h"
 #define COMMS_TIMEOUT 5000
-SoftwareSerial lora(2,3);
+SoftwareSerial lora(3,2);
 
 String lora_recieve(){
   String rx_string;
