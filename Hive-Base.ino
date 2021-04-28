@@ -1,22 +1,27 @@
 #include <HX711.h>
-
+#include <Wire.h>
+#include <Adafruit_INA219.h>
 #include <DHT.h>
 #include <DHT_U.h>
 #include  "Hive.h"
 
+//#include <MD_PWM.h>
+//const uint16_t PWM_FREQ = 50;    // in Hz
+//MD_PWM pwm(6);
+
 #define SOUND_PIN   A0
 #define DHTPIN      4
 #define DHTTYPE     DHT11   
-#define PELTIER_PIN 6
+#define PELTIER_PIN 6 
 
 #define TEMP_HYSTERYSIS 3
 
 DHT_Unified dht(DHTPIN, DHTTYPE);
-
+Adafruit_INA219 power;
 HiveData hive_data;
 
-const int LOADCELL_DOUT_PIN = 5;
-const int LOADCELL_SCK_PIN = 6;
+const int LOADCELL_DOUT_PIN = 8;
+const int LOADCELL_SCK_PIN = 7;
 
 #define SCALE_CAL_VALUE -7000.f 
 
@@ -158,12 +163,42 @@ void scale_init(){
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(19200);
-  //scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
-  //scale.set_scale(-7000.f);
-  //scale.tare();
+  scale.begin(LOADCELL_DOUT_PIN, LOADCELL_SCK_PIN);
+  scale.set_scale(-7000.f);
+  scale.tare();
   lora_configure();
   dht.begin();
   pinMode(PELTIER_PIN, OUTPUT);
+  if (! power.begin()) {
+    Serial.println("Failed to find INA219 chip");
+    //while (1) { delay(10); }
+  }
+//  if (!pwm.begin(PWM_FREQ))
+//    {
+//      Serial.println("Unable to initialize pwm");
+//    }
+  //pwm.write(0);
+  hive_data.set_temp_c = 30; 
+}
+
+void get_power(){
+  float shuntvoltage = 0;
+  float busvoltage = 0;
+  float current_mA = 0;
+  float loadvoltage = 0;
+  float power_mW = 0;
+
+  shuntvoltage = power.getShuntVoltage_mV();
+  busvoltage = power.getBusVoltage_V();
+  current_mA = power.getCurrent_mA();
+  power_mW = power.getPower_mW();
+  loadvoltage = busvoltage + (shuntvoltage / 1000);
+  
+  Serial.print("Bus Voltage:   "); Serial.print(busvoltage); Serial.println(" V");
+  Serial.print("Shunt Voltage: "); Serial.print(shuntvoltage); Serial.println(" mV");
+  Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
+  Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
+  Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
 }
 
 void loop() {
@@ -181,11 +216,26 @@ void loop() {
   hive_data.sound_db = analogRead(SOUND_PIN);
   hive_data.bat_charge = 90;
   hive_data.bat_status = 0;
-  //hive_data.raw_weight = scale.get_units(5);
+  hive_data.raw_weight = scale.get_units(5);
 
-  String rx = lora_parse_rx(lora_recieve());
+  get_power();
+
+  String rx = lora_recieve();
+  //String rx = lora_parse_rx(lora_recieve());
+  if(rx.equals("No Rx")){
+    if(Serial.available()){
+      rx = Serial.readStringUntil('\n');
+      Serial.print("Serial input: ");
+      Serial.println(rx);
+    }
+  }
+  else{
+   rx = lora_parse_rx(rx);
+  }
+  
   String cmd = rx.substring(0, HEADER_LENGTH);
   String payload = rx.substring(HEADER_LENGTH);
+
 
   if(cmd.equals(HIVE_CMD_FETCH)){
     hive_push_data();
@@ -204,17 +254,19 @@ void loop() {
   if(hive_data.inside_temperature_c - hive_data.set_temp_c > TEMP_HYSTERYSIS){
     //turn on peltier
     hive_data.fan_status = 1;
-    digitalWrite(PELTIER_PIN, HIGH);   
+    digitalWrite(PELTIER_PIN, HIGH);
+    //pwm.write(50);   
   }
   else{
     //turn off peltier
     hive_data.fan_status = 0;
     digitalWrite(PELTIER_PIN, LOW); 
+    //pwm.write( 0);
   }
   print_data_info();
 
   
-  //scale.power_down();              // put the ADC in sleep mode
+  scale.power_down();              // put the ADC in sleep mode
   delay(1000);
-  //scale.power_up();
+  scale.power_up();
 }
