@@ -16,6 +16,8 @@
 
 #define TEMP_HYSTERYSIS 3
 
+#define BATTERY_CAPACITY_MAH  12000
+
 DHT_Unified dht(DHTPIN, DHTTYPE);
 Adafruit_INA219 power;
 HiveData hive_data;
@@ -181,7 +183,10 @@ void setup() {
   hive_data.set_temp_c = 30; 
 }
 
-void get_power(){
+//system expects to start with dead battery
+double current_mah = 0;
+
+void get_power(float last_call_seconds){
   float shuntvoltage = 0;
   float busvoltage = 0;
   float current_mA = 0;
@@ -199,6 +204,16 @@ void get_power(){
   Serial.print("Load Voltage:  "); Serial.print(loadvoltage); Serial.println(" V");
   Serial.print("Current:       "); Serial.print(current_mA); Serial.println(" mA");
   Serial.print("Power:         "); Serial.print(power_mW); Serial.println(" mW");
+
+  if(current_mA > 0){
+    hive_data.bat_status = 1;
+  }
+  else{
+    hive_data.bat_status = 0;
+  }
+  
+  current_mah += (current_ma/3600) * last_call_seconds;
+  hive_data.bat_charge = (min(current_mah,BATTERY_CAPACITY_MAH)/BATTERY_CAPACITY_MAH)*100;
 }
 
 void loop() {
